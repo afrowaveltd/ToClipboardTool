@@ -5,8 +5,9 @@ edition = "2021"
 description = "Copy command stdout to the OS clipboard, or pipe clipboard text into a command"
 authors = ["Afrowave"]
 license = "MIT"
-repository = "https://github.com/afrowave/to-clipboard"
-homepage = "https://github.com/afrowave/to-clipboard"
+repository = "https://github.com/afrowaveltd/ToClipboardTool"
+homepage = "https://github.com/afrowaveltd/ToClipboardTool"
+readme = "README.md"
 keywords = ["clipboard", "cli", "shell", "command", "utility"]
 categories = ["command-line-utilities"]
 
