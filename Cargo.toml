@@ -1,0 +1,21 @@
+[package]
+name = "to-clipboard"
+version = "0.1.0"
+edition = "2021"
+description = "Copy command stdout to the OS clipboard, or pipe clipboard text into a command"
+authors = ["Afrowave"]
+license = "MIT"
+repository = "https://github.com/afrowave/to-clipboard"
+homepage = "https://github.com/afrowave/to-clipboard"
+keywords = ["clipboard", "cli", "shell", "command", "utility"]
+categories = ["command-line-utilities"]
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+arboard = "3"
+
+[profile.release]
+opt-level = "z"     # optimize for size
+lto = true          # link-time optimization
+strip = true        # strip symbols
+codegen-units = 1   # better optimization
