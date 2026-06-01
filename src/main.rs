@@ -5,7 +5,7 @@ use clap::Parser;
 #[cfg(target_os = "linux")]
 use std::env;
 use std::io::{self, IsTerminal, Read, Write};
-use std::process::{Command, ExitStatus, Stdio};
+use std::process::{Command, ExitStatus, Output, Stdio};
 
 /// Runs a command, copies its stdout to the OS clipboard,
 /// or sends clipboard content into a command.
@@ -241,16 +241,16 @@ fn clipboard_text_from_bytes(bytes: &[u8]) -> ClipboardText<'_> {
 }
 
 fn run_command_and_capture_stdout(command: &[String], use_shell: bool) -> CommandOutput {
-    let mut process = build_command(command, use_shell);
-
-    let output = process
-        .stdout(Stdio::piped())
-        .stderr(Stdio::inherit())
-        .output()
-        .unwrap_or_else(|error| {
+    let output = capture_command_stdout(command, use_shell).unwrap_or_else(|error| {
+        if let Some(output) =
+            capture_command_stdout_with_windows_shell_fallback(command, use_shell, &error)
+        {
+            output
+        } else {
             eprintln!("to-clipboard: failed to run command: {}", error);
             std::process::exit(EXIT_GENERAL_ERROR);
-        });
+        }
+    });
 
     CommandOutput {
         stdout: output.stdout,
@@ -259,15 +259,16 @@ fn run_command_and_capture_stdout(command: &[String], use_shell: bool) -> Comman
 }
 
 fn run_command_with_stdin(command: &[String], use_shell: bool, stdin_text: &str) -> ExitStatus {
-    let mut child = build_command(command, use_shell)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .spawn()
-        .unwrap_or_else(|error| {
+    let mut child = spawn_command_with_stdin(command, use_shell).unwrap_or_else(|error| {
+        if let Some(child) =
+            spawn_command_with_stdin_with_windows_shell_fallback(command, use_shell, &error)
+        {
+            child
+        } else {
             eprintln!("to-clipboard: failed to run command: {}", error);
             std::process::exit(EXIT_GENERAL_ERROR);
-        });
+        }
+    });
 
     if let Some(mut stdin) = child.stdin.take() {
         stdin
@@ -282,6 +283,107 @@ fn run_command_with_stdin(command: &[String], use_shell: bool, stdin_text: &str)
         eprintln!("to-clipboard: failed to wait for command: {}", error);
         std::process::exit(EXIT_GENERAL_ERROR);
     })
+}
+
+fn capture_command_stdout(command: &[String], use_shell: bool) -> io::Result<Output> {
+    build_command(command, use_shell)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .output()
+}
+
+fn spawn_command_with_stdin(
+    command: &[String],
+    use_shell: bool,
+) -> io::Result<std::process::Child> {
+    build_command(command, use_shell)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .spawn()
+}
+
+#[cfg(target_os = "windows")]
+fn capture_command_stdout_with_windows_shell_fallback(
+    command: &[String],
+    use_shell: bool,
+    error: &io::Error,
+) -> Option<Output> {
+    if !should_retry_with_windows_shell(use_shell, error) {
+        return None;
+    }
+
+    default_shell_command(&windows_shell_command_from_args(command))
+        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .output()
+        .ok()
+}
+
+#[cfg(not(target_os = "windows"))]
+fn capture_command_stdout_with_windows_shell_fallback(
+    _command: &[String],
+    _use_shell: bool,
+    _error: &io::Error,
+) -> Option<Output> {
+    None
+}
+
+#[cfg(target_os = "windows")]
+fn spawn_command_with_stdin_with_windows_shell_fallback(
+    command: &[String],
+    use_shell: bool,
+    error: &io::Error,
+) -> Option<std::process::Child> {
+    if !should_retry_with_windows_shell(use_shell, error) {
+        return None;
+    }
+
+    default_shell_command(&windows_shell_command_from_args(command))
+        .stdin(Stdio::piped())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .spawn()
+        .ok()
+}
+
+#[cfg(not(target_os = "windows"))]
+fn spawn_command_with_stdin_with_windows_shell_fallback(
+    _command: &[String],
+    _use_shell: bool,
+    _error: &io::Error,
+) -> Option<std::process::Child> {
+    None
+}
+
+#[cfg(target_os = "windows")]
+fn should_retry_with_windows_shell(use_shell: bool, error: &io::Error) -> bool {
+    !use_shell && error.kind() == io::ErrorKind::NotFound
+}
+
+#[cfg(target_os = "windows")]
+fn windows_shell_command_from_args(command: &[String]) -> String {
+    command
+        .iter()
+        .map(|arg| windows_powershell_quote_arg(arg))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+#[cfg(target_os = "windows")]
+fn windows_powershell_quote_arg(arg: &str) -> String {
+    if arg.is_empty() {
+        return "''".to_string();
+    }
+
+    if arg
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.' | '/' | '\\' | ':'))
+    {
+        return arg.to_string();
+    }
+
+    format!("'{}'", arg.replace('\'', "''"))
 }
 
 fn build_command(command: &[String], use_shell: bool) -> Command {
@@ -302,6 +404,7 @@ fn build_command(command: &[String], use_shell: bool) -> Command {
 #[cfg(target_os = "windows")]
 fn default_shell_command(shell_command: &str) -> Command {
     let mut command = Command::new("powershell.exe");
+    let utf8_shell_command = powershell_command_with_utf8_output(shell_command);
     command
         .arg("-NoLogo")
         .arg("-NoProfile")
@@ -309,8 +412,17 @@ fn default_shell_command(shell_command: &str) -> Command {
         .arg("-ExecutionPolicy")
         .arg("Bypass")
         .arg("-Command")
-        .arg(shell_command);
+        .arg(utf8_shell_command);
     command
+}
+
+#[cfg(target_os = "windows")]
+fn powershell_command_with_utf8_output(shell_command: &str) -> String {
+    format!(
+        "[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); \
+$OutputEncoding = [Console]::OutputEncoding; {}",
+        shell_command
+    )
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -454,7 +566,27 @@ fn flush_stdout_or_exit() {
 
 fn write_stdout_or_exit(bytes: &[u8]) {
     let mut stdout = io::stdout().lock();
-    stdout.write_all(bytes).unwrap_or_else(|error| {
+    if let Err(error) = stdout.write_all(bytes) {
+        #[cfg(target_os = "windows")]
+        if error.kind() == io::ErrorKind::InvalidData {
+            write_lossy_stdout_or_exit(&mut stdout, bytes);
+            return;
+        }
+
+        eprintln!("to-clipboard: failed to write stdout: {}", error);
+        std::process::exit(EXIT_GENERAL_ERROR);
+    }
+
+    stdout.flush().unwrap_or_else(|error| {
+        eprintln!("to-clipboard: failed to write stdout: {}", error);
+        std::process::exit(EXIT_GENERAL_ERROR);
+    });
+}
+
+#[cfg(target_os = "windows")]
+fn write_lossy_stdout_or_exit(stdout: &mut impl Write, bytes: &[u8]) {
+    let text = String::from_utf8_lossy(bytes);
+    stdout.write_all(text.as_bytes()).unwrap_or_else(|error| {
         eprintln!("to-clipboard: failed to write stdout: {}", error);
         std::process::exit(EXIT_GENERAL_ERROR);
     });
@@ -542,9 +674,50 @@ mod tests {
                 "-ExecutionPolicy",
                 "Bypass",
                 "-Command",
-                "Write-Output hello",
+                "[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); $OutputEncoding = [Console]::OutputEncoding; Write-Output hello",
             ]
         );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn windows_shell_command_forces_utf8_output() {
+        assert_eq!(
+            powershell_command_with_utf8_output("dir"),
+            "[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); $OutputEncoding = [Console]::OutputEncoding; dir"
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn windows_shell_fallback_preserves_arguments_with_spaces() {
+        let command = vec![
+            "dir".to_string(),
+            "C:\\Program Files".to_string(),
+            "it's-here".to_string(),
+        ];
+
+        assert_eq!(
+            windows_shell_command_from_args(&command),
+            "dir 'C:\\Program Files' 'it''s-here'"
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn windows_shell_fallback_only_retries_missing_direct_commands() {
+        assert!(should_retry_with_windows_shell(
+            false,
+            &io::Error::from(io::ErrorKind::NotFound)
+        ));
+        assert!(!should_retry_with_windows_shell(
+            true,
+            &io::Error::from(io::ErrorKind::NotFound)
+        ));
+        assert!(!should_retry_with_windows_shell(
+            false,
+            &io::Error::from(io::ErrorKind::PermissionDenied)
+        ));
     }
 
     #[cfg(not(target_os = "windows"))]
