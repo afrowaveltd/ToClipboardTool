@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">to-clipboard app icon</title>
+  <desc id="desc">A monitor with a paperclip-shaped clipboard symbol.</desc>
+  <defs>
+    <linearGradient id="screen" x1="52" y1="36" x2="204" y2="184" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2dd4bf"/>
+      <stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+    <linearGradient id="clip" x1="92" y1="56" x2="168" y2="168" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#dbeafe"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="48" fill="#0f172a"/>
+  <rect x="42" y="42" width="172" height="128" rx="18" fill="url(#screen)"/>
+  <rect x="56" y="56" width="144" height="100" rx="10" fill="#0f172a" opacity=".18"/>
+  <path d="M104 196h48" fill="none" stroke="#e2e8f0" stroke-width="14" stroke-linecap="round"/>
+  <path d="M128 170v26" fill="none" stroke="#e2e8f0" stroke-width="14" stroke-linecap="round"/>
+  <path
+    d="M111 130V82c0-19 15-34 34-34s34 15 34 34v62c0 30-24 54-54 54s-54-24-54-54V91c0-8 6-14 14-14s14 6 14 14v53c0 14 12 26 26 26s26-12 26-26V82c0-4-3-7-7-7s-7 3-7 7v48c0 7-6 13-13 13s-13-6-13-13z"
+    fill="none"
+    stroke="url(#clip)"
+    stroke-width="14"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <circle cx="188" cy="64" r="9" fill="#f8fafc" opacity=".8"/>
+</svg>

@@ -1,5 +1,9 @@
 # to-clipboard
 
+<p align="center">
+  <img src="assets/app-icon.svg" alt="to-clipboard app icon" width="128" height="128">
+</p>
+
 Small terminal helper for copying command output or piped stdin to the OS clipboard, and for sending clipboard content back into commands.
 
 `to-clipboard` is intentionally tiny: it is not a shell replacement, not a terminal emulator, and not a clipboard manager. It is a practical bridge between stdout, stdin, and the desktop clipboard.

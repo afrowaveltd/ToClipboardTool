@@ -78,11 +78,12 @@ jobs:
           $ErrorActionPreference = "Stop"
           $version = $env:GITHUB_REF_NAME.TrimStart("v")
           $packageRoot = "${{ matrix.package }}-$version"
-          New-Item -ItemType Directory -Path "dist", "$packageRoot", "$packageRoot\bin", "$packageRoot\share\doc\to-clipboard" | Out-Null
+          New-Item -ItemType Directory -Path "dist", "$packageRoot", "$packageRoot\bin", "$packageRoot\share\doc\to-clipboard", "$packageRoot\share\doc\to-clipboard\assets" | Out-Null
           Copy-Item "target\${{ matrix.target }}\release\${{ matrix.binary }}" "$packageRoot\bin\to-clipboard.exe"
           Copy-Item "README.md" "$packageRoot\share\doc\to-clipboard\README.md"
           Copy-Item "LICENSE" "$packageRoot\share\doc\to-clipboard\LICENSE"
           Copy-Item "Docs\en.md" "$packageRoot\share\doc\to-clipboard\DOCUMENTATION.md"
+          Copy-Item "assets\app-icon.svg" "$packageRoot\share\doc\to-clipboard\assets\app-icon.svg"
           Compress-Archive -Path $packageRoot -DestinationPath "dist\$packageRoot.zip"
           Get-FileHash "dist\$packageRoot.zip" -Algorithm SHA256 |
             ForEach-Object { "$($_.Hash.ToLowerInvariant())  $(Split-Path $_.Path -Leaf)" } |
@@ -94,11 +95,12 @@ jobs:
         run: |
           version="${GITHUB_REF_NAME#v}"
           package_root="${{ matrix.package }}-$version"
-          mkdir -p "dist" "$package_root/bin" "$package_root/share/doc/to-clipboard"
+          mkdir -p "dist" "$package_root/bin" "$package_root/share/doc/to-clipboard/assets"
           cp "target/${{ matrix.target }}/release/${{ matrix.binary }}" "$package_root/bin/to-clipboard"
           cp README.md "$package_root/share/doc/to-clipboard/README.md"
           cp LICENSE "$package_root/share/doc/to-clipboard/LICENSE"
           cp Docs/en.md "$package_root/share/doc/to-clipboard/DOCUMENTATION.md"
+          cp assets/app-icon.svg "$package_root/share/doc/to-clipboard/assets/app-icon.svg"
           tar -czf "dist/${package_root}.tar.gz" "$package_root"
           cd dist
           shasum -a 256 * > SHA256SUMS-${{ matrix.name }}.txt

@@ -5,4 +5,5 @@
 *.yaml text eol=lf
 *.md text eol=lf
 *.rs text eol=lf
+*.svg text eol=lf
 Cargo.lock text eol=lf

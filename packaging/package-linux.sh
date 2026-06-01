@@ -53,11 +53,12 @@ trap 'rm -rf "$WORK_DIR"' EXIT
 copy_docs() {
     local doc_dir="$1"
 
-    mkdir -p "$doc_dir"
+    mkdir -p "$doc_dir/assets"
     cp "$PROJECT_DIR/README.md" "$doc_dir/README.md"
     cp "$PROJECT_DIR/LICENSE" "$doc_dir/LICENSE"
     cp "$PROJECT_DIR/Docs/en.md" "$doc_dir/DOCUMENTATION.md"
-    chmod 0644 "$doc_dir/README.md" "$doc_dir/LICENSE" "$doc_dir/DOCUMENTATION.md"
+    cp "$PROJECT_DIR/assets/app-icon.svg" "$doc_dir/assets/app-icon.svg"
+    chmod 0644 "$doc_dir/README.md" "$doc_dir/LICENSE" "$doc_dir/DOCUMENTATION.md" "$doc_dir/assets/app-icon.svg"
 }
 
 make_archive() {
@@ -102,13 +103,14 @@ make_rpm() {
     local spec="$rpmbuild_root/SPECS/$PACKAGE_NAME.spec"
 
     mkdir -p "$rpmbuild_root/BUILD" "$rpmbuild_root/BUILDROOT" "$rpmbuild_root/RPMS" "$rpmbuild_root/SOURCES" "$rpmbuild_root/SPECS" "$rpmbuild_root/SRPMS" "$rpmbuild_root/TMP"
-    mkdir -p "$sources/usr/bin" "$sources/usr/share/doc/$PACKAGE_NAME" "$sources/usr/share/licenses/$PACKAGE_NAME"
+    mkdir -p "$sources/usr/bin" "$sources/usr/share/doc/$PACKAGE_NAME/assets" "$sources/usr/share/licenses/$PACKAGE_NAME"
     cp "$BINARY_PATH" "$sources/usr/bin/$PACKAGE_NAME"
     cp "$PROJECT_DIR/README.md" "$sources/usr/share/doc/$PACKAGE_NAME/README.md"
     cp "$PROJECT_DIR/Docs/en.md" "$sources/usr/share/doc/$PACKAGE_NAME/DOCUMENTATION.md"
+    cp "$PROJECT_DIR/assets/app-icon.svg" "$sources/usr/share/doc/$PACKAGE_NAME/assets/app-icon.svg"
     cp "$PROJECT_DIR/LICENSE" "$sources/usr/share/licenses/$PACKAGE_NAME/LICENSE"
     chmod 0755 "$sources/usr/bin/$PACKAGE_NAME"
-    chmod 0644 "$sources/usr/share/doc/$PACKAGE_NAME/README.md" "$sources/usr/share/doc/$PACKAGE_NAME/DOCUMENTATION.md" "$sources/usr/share/licenses/$PACKAGE_NAME/LICENSE"
+    chmod 0644 "$sources/usr/share/doc/$PACKAGE_NAME/README.md" "$sources/usr/share/doc/$PACKAGE_NAME/DOCUMENTATION.md" "$sources/usr/share/doc/$PACKAGE_NAME/assets/app-icon.svg" "$sources/usr/share/licenses/$PACKAGE_NAME/LICENSE"
 
     cat > "$spec" <<EOF
 Name: $PACKAGE_NAME
@@ -127,17 +129,19 @@ $DESCRIPTION
 
 %install
 mkdir -p %{buildroot}/usr/bin
-mkdir -p %{buildroot}/usr/share/doc/$PACKAGE_NAME
+mkdir -p %{buildroot}/usr/share/doc/$PACKAGE_NAME/assets
 mkdir -p %{buildroot}/usr/share/licenses/$PACKAGE_NAME
 cp %{_sourcedir}/usr/bin/$PACKAGE_NAME %{buildroot}/usr/bin/$PACKAGE_NAME
 cp %{_sourcedir}/usr/share/doc/$PACKAGE_NAME/README.md %{buildroot}/usr/share/doc/$PACKAGE_NAME/README.md
 cp %{_sourcedir}/usr/share/doc/$PACKAGE_NAME/DOCUMENTATION.md %{buildroot}/usr/share/doc/$PACKAGE_NAME/DOCUMENTATION.md
+cp %{_sourcedir}/usr/share/doc/$PACKAGE_NAME/assets/app-icon.svg %{buildroot}/usr/share/doc/$PACKAGE_NAME/assets/app-icon.svg
 cp %{_sourcedir}/usr/share/licenses/$PACKAGE_NAME/LICENSE %{buildroot}/usr/share/licenses/$PACKAGE_NAME/LICENSE
 
 %files
 /usr/bin/$PACKAGE_NAME
 %doc /usr/share/doc/$PACKAGE_NAME/README.md
 %doc /usr/share/doc/$PACKAGE_NAME/DOCUMENTATION.md
+%doc /usr/share/doc/$PACKAGE_NAME/assets/app-icon.svg
 %license /usr/share/licenses/$PACKAGE_NAME/LICENSE
 EOF
 
