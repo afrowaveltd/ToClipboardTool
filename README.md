@@ -174,17 +174,34 @@ The helper script keeps Windows GNU cross-build artifacts in a temporary target 
 The repository includes GitHub Actions workflows:
 
 - `CI` runs formatting, tests, and clippy on pushes and pull requests to `main`.
-- `Release` builds Linux, Windows, and macOS binaries when a semantic version tag is pushed.
-- Linux releases also include `.tar.gz`, `.deb`, `.rpm`, and checksum files.
+- `Release` builds Linux, Windows, and macOS packages when a semantic version tag is pushed.
+- Release assets include checksums for every package.
+
+Release assets:
+
+| Platform | Assets |
+|----------|--------|
+| Linux x86_64 | `.tar.gz`, `.deb`, `.rpm` |
+| Windows x86_64 | `.zip` |
+| macOS x86_64 | `.tar.gz` |
+| macOS arm64 | `.tar.gz` |
+
+Before tagging, run the local checks:
+
+```bash
+cargo fmt --check
+cargo test --locked
+cargo clippy --all-targets --all-features --locked -- -D warnings
+```
 
 Create a release by tagging a commit:
 
 ```bash
-git tag v0.1.0
+git tag -a v0.1.0 -m "Release v0.1.0"
 git push origin v0.1.0
 ```
 
-The release workflow uploads binaries to the matching GitHub Release.
+The release workflow creates the matching GitHub Release and uploads packaged assets.
 
 ---
 
